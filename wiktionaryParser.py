@@ -30,7 +30,8 @@ class DynamoDBConnector:
         item = self.table.put_item(
             Item={
             'word': word,
-            'ipa': ipa
+            'ipa': ipa or None,
+            'audio': audio or None
             })
 
 
@@ -60,8 +61,9 @@ class WiktionaryIPAParser(HTMLParser):
             if self.foundAudioTag and not self.foundAudio:
                 href = dict(attrs).get("href")
                 if href and href.split('.')[-1] in ["ogg", "wav", "mp3"]:
+                    if href.startswith('//'):
+                        href = href[2:]
                     self.audioUrl = href
-                    print "Audio", href
                     self.foundAudio = True
             t = dict(attrs).get("title")
             try:
