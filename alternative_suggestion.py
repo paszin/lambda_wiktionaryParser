@@ -18,7 +18,9 @@ class DynamoDBConnector:
             Key={
             'word': word
             },
-            AttributesToGet=['alternatives']).get("Item")
+            AttributesToGet=['word','alternatives']).get("Item")
+        if not item.get("word"):
+            raise ValueError(word + "is not in database")
         alts = item.get("alternatives")
         if not alts:
             self.table.update_item(Key={"word": word}, UpdateExpression="set alternatives = :r",
@@ -45,7 +47,12 @@ def lambda_handler(event, context):
     alternative = event.get("ipa")
     explanation = event.get("explanation")
     if not word or not alternative:
-        return {"error": "please provide word and alternative"}
+        return {"error": "please provide word and ipa"}
     word = word.strip()
     db = DynamoDBConnector()
-    return db.update(word, alternative, explanation)
+    try:
+        result = db.update(word, alternative, explanation)
+    except ValueError:
+        return "word not in database"
+    finally:
+        return result
