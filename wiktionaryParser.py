@@ -104,7 +104,7 @@ def word2ipa(word):
     req = urllib2.Request(url, None, headers)
     data = json.loads(urllib2.urlopen(req).read())
     if data.get("error"):
-        return False, word
+        return False, word, None
     if data.get("parse"):
         parser = parse(data["parse"]["text"]["*"])
         return True, parser.data, parser.audioUrl
