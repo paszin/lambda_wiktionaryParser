@@ -20,7 +20,7 @@ class DynamoDBConnector:
             Key={
             'word': word
             },
-            AttributesToGet=['ipa', 'audio']).get("Item")
+            AttributesToGet=['ipa', 'audio', 'alternatives']).get("Item")
         if item:
             return item
         else:
@@ -127,10 +127,14 @@ def lookup(word, db):
         data, success = db.get(word), True
         ipa = data.get("ipa")
         audio = data.get("audio")
+        alternatives = data.get("alternatives")
+        source = "db"
     except ValueError:
         ### lookup from dynamo db
         success, ipa, audio = word2ipa(word)
-    return success, ipa, audio
+        alternatives = []
+        source = "wiktionary"
+    return success, {"ipa": ipa, "audio": audio, "alternatives": alternatives, "source": source}
 
 def lambda_handler(event, context):
     words = event.get("text")
@@ -139,21 +143,25 @@ def lambda_handler(event, context):
     words = words.strip()
     dictionary = {}
     samples = {}
+    alternatives = {}
     db = DynamoDBConnector()
     wordsSet = set(map(removeSpecialChars, words.split(" ")))
     for word in wordsSet:
-        success, ipa, audio = lookup(word, db)
+        success, result = lookup(word, db)
         if not success:
             word = word.lower()
-            success, ipa, audio = lookup(word, db)
+            success, result = lookup(word, db)
         if success:
-            dictionary[word] = ipa
-            samples[word] = audio
-            db.put(word, ipa, audio)
+            dictionary[word] = result.get("ipa")
+            samples[word] = result.get("audio")
+            alternatives[word] = result.get("alternatives")
+            if result.get("source") != "db":
+                db.put(word, ipa, audio)
 
     return {"translation": translate(words, dictionary),
             "dictionary": dictionary,
-            "samples": samples}
+            "samples": samples,
+            "alternatives": alternatives}
 
 
 if __name__ == "__main__":
